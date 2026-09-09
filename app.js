@@ -93,7 +93,7 @@ async function handleScan(decodedText) {
 
       if (updateError) throw updateError;
 
-      showStatus("✓ CHECKED OUT", "#ff9800", member.full_name.toUpperCase(), `AT ${timeString}`);
+      showStatus("CHECKED OUT", "#ff9800", member.full_name.toUpperCase(), `AT ${timeString}`);
     } else {
       // CHECK IN
       const { error: insertError } = await dbClient
