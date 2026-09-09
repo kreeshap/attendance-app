@@ -27,17 +27,19 @@ function focusScannerInput() {
 }
 
 // 2. Capture Barcode Scanner Input (Triggers on ENTER key)
-scannerInput.addEventListener("keydown", async (e) => {
-  if (e.key === "Enter") {
-    e.preventDefault();
-    const decodedText = scannerInput.value.trim();
-    scannerInput.value = ""; // Clear buffer immediately
+if (scannerInput) {
+  scannerInput.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      const decodedText = scannerInput.value.trim();
+      scannerInput.value = ""; // Clear buffer immediately
 
-    if (decodedText) {
-      await handleScan(decodedText);
+      if (decodedText) {
+        await handleScan(decodedText);
+      }
     }
-  }
-});
+  });
+}
 
 async function handleScan(decodedText) {
   const currentTime = Date.now();
@@ -106,7 +108,12 @@ async function handleScan(decodedText) {
   }
 }
 
+// Expose handleScan explicitly for console testing
+window.handleScan = handleScan;
+
 function showStatus(action, color, name, time) {
+  if (!card || !actionEl || !nameEl || !timeEl) return;
+
   actionEl.textContent = action;
   actionEl.style.color = color;
   nameEl.textContent = name;
