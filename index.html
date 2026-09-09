@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attendance Scanner</title>
+  <style>
+    body {
+      background-color: #0d1b24;
+      color: #ffffff;
+      font-family: sans-serif;
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+    .view { display: block; }
+
+    /* Status Card Styling */
+    #status-card {
+      display: none;
+      margin: 20px auto;
+      padding: 20px;
+      width: 300px;
+      background: #1a2f3b;
+      border: 2px solid #e06328;
+      border-radius: 8px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+  <!-- SCANNER VIEW -->
+  <div id="scanner-view" class="view">
+    <h1>ROBOSTANGS</h1>
+    <p>SCAN YOUR MEMBER PASS</p>
+    
+    <div id="status-card">
+      <h2 id="status-action" style="margin:0;"></h2>
+      <h3 id="status-name" style="margin:10px 0 5px 0;"></h3>
+      <p id="status-time" style="margin:0; color:#ccc;"></p>
+    </div>
+
+    <!-- Hidden input for USB scanner -->
+    <input type="text" id="scanner-input" style="opacity: 0; position: absolute; pointer-events: none;" autofocus />
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
