@@ -2,9 +2,11 @@
 const SUPABASE_URL = "https://mkizsdepvbrevyojmbjq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1raXpzZGVwdmJyZXZ5b2ptYmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjA5ODIsImV4cCI6MjEwNDAzNjk4Mn0.pKpq9evw3YvmKeJ0dQBUxIYLkhPNAKcxMGQByAmNcRg";
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Initialize using the global window.supabase object from the CDN script
+// Named dbClient so it won't collide with window.supabase
+const dbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// State trackers for double-scan protection
+// State trackers
 let lastScanId = null;
 let lastScanTime = 0;
 let hideCardTimeout = null;
@@ -16,7 +18,7 @@ const nameEl = document.getElementById("status-name");
 const timeEl = document.getElementById("status-time");
 const scannerInput = document.getElementById("scanner-input");
 
-// 1. Maintain scanner focus at all times
+// Maintain focus on scanner input
 document.addEventListener("click", focusScannerInput);
 window.addEventListener("load", focusScannerInput);
 
@@ -26,13 +28,13 @@ function focusScannerInput() {
   }
 }
 
-// 2. Capture Barcode Scanner Input (Triggers on ENTER key)
+// Capture Barcode Input
 if (scannerInput) {
   scannerInput.addEventListener("keydown", async (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
       const decodedText = scannerInput.value.trim();
-      scannerInput.value = ""; // Clear buffer immediately
+      scannerInput.value = ""; 
 
       if (decodedText) {
         await handleScan(decodedText);
@@ -41,10 +43,11 @@ if (scannerInput) {
   });
 }
 
+// Handle Scanned Member ID
 async function handleScan(decodedText) {
   const currentTime = Date.now();
 
-  // 10-second duplicate scan cooldown
+  // Prevent double scans within 10 seconds
   if (decodedText === lastScanId && (currentTime - lastScanTime) < 10000) {
     console.log("Duplicate scan ignored:", decodedText);
     return;
@@ -54,8 +57,8 @@ async function handleScan(decodedText) {
   lastScanTime = currentTime;
 
   try {
-    // Step A: Look up member in Supabase
-    const { data: member, error: memberError } = await supabase
+    // 1. Look up member
+    const { data: member, error: memberError } = await dbClient
       .from("members")
       .select("member_id, full_name, group")
       .eq("member_id", decodedText)
@@ -66,8 +69,8 @@ async function handleScan(decodedText) {
       return;
     }
 
-    // Step B: Check for an active (open) attendance session
-    const { data: activeLog, error: logError } = await supabase
+    // 2. Check for active check-in
+    const { data: activeLog, error: logError } = await dbClient
       .from("attendance")
       .select("id")
       .eq("member_id", decodedText)
@@ -82,8 +85,8 @@ async function handleScan(decodedText) {
     const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     if (activeLog) {
-      // Step C: Open session found -> CHECK OUT
-      const { error: updateError } = await supabase
+      // CHECK OUT
+      const { error: updateError } = await dbClient
         .from("attendance")
         .update({ check_out: new Date().toISOString() })
         .eq("id", activeLog.id);
@@ -92,8 +95,8 @@ async function handleScan(decodedText) {
 
       showStatus("✓ CHECKED OUT", "#ff9800", member.full_name.toUpperCase(), `AT ${timeString}`);
     } else {
-      // Step D: No open session -> CHECK IN
-      const { error: insertError } = await supabase
+      // CHECK IN
+      const { error: insertError } = await dbClient
         .from("attendance")
         .insert([{ member_id: decodedText, check_in: new Date().toISOString() }]);
 
@@ -108,7 +111,7 @@ async function handleScan(decodedText) {
   }
 }
 
-// Expose handleScan explicitly for console testing
+// Explicitly bind to window for DevTools access
 window.handleScan = handleScan;
 
 function showStatus(action, color, name, time) {
@@ -120,7 +123,6 @@ function showStatus(action, color, name, time) {
   timeEl.textContent = time;
   card.style.display = "block";
 
-  // Reset display timer
   if (hideCardTimeout) clearTimeout(hideCardTimeout);
   hideCardTimeout = setTimeout(() => {
     card.style.display = "none";
