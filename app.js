@@ -24,9 +24,20 @@ const modeToggle = document.getElementById("mode-toggle");
 const eventNameLabel = document.getElementById("event-name-label");
 const appTitle = document.getElementById("app-title");
 const scannerPrompt = document.getElementById("scanner-prompt");
+const eventPromptModal = document.getElementById("event-prompt-modal");
+const eventNameInput = document.getElementById("event-name-input");
+const eventPromptCancel = document.querySelector(".event-prompt-cancel");
+const eventPromptSubmit = document.querySelector(".event-prompt-submit");
 
-// Maintain focus on scanner input
-document.addEventListener("click", focusScannerInput);
+// Maintain focus on scanner input, but let the mode button keep its own click
+document.addEventListener("click", (event) => {
+  const clickedToggle = event.target && event.target.closest && event.target.closest("#mode-toggle");
+  if (clickedToggle) {
+    return;
+  }
+
+  focusScannerInput();
+});
 window.addEventListener("load", focusScannerInput);
 
 function focusScannerInput() {
@@ -58,23 +69,46 @@ function updateModeUI() {
   }
 }
 
+function openEventNamePrompt() {
+  if (!eventPromptModal || !eventNameInput) return;
+
+  eventPromptModal.classList.add("visible");
+  eventPromptModal.setAttribute("aria-hidden", "false");
+  eventNameInput.value = "";
+  setTimeout(() => eventNameInput.focus(), 50);
+}
+
+function closeEventNamePrompt() {
+  if (!eventPromptModal) return;
+
+  eventPromptModal.classList.remove("visible");
+  eventPromptModal.setAttribute("aria-hidden", "true");
+}
+
+function submitEventName() {
+  const enteredName = eventNameInput ? eventNameInput.value.trim() : "";
+
+  if (!enteredName) {
+    showStatus("NO EVENT NAME", "#f44336", "ENTER EVENT NAME", "");
+    closeEventNamePrompt();
+    return;
+  }
+
+  outreachEventName = enteredName;
+  currentMode = "outreach";
+  outreachActive = false;
+  closeEventNamePrompt();
+  updateModeUI();
+  showStatus("OUTREACH MODE", "#2196f3", outreachEventName.toUpperCase());
+}
+
 function enableOutreachMode() {
   if (currentMode === "outreach" && outreachActive) {
     showStatus("OUTREACH ACTIVE", "#ff9800", "CHECK OUT FIRST", "");
     return;
   }
 
-  const enteredName = window.prompt("Enter event name for outreach mode");
-  if (!enteredName || !enteredName.trim()) {
-    showStatus("NO EVENT NAME", "#f44336", "ENTER EVENT NAME", "");
-    return;
-  }
-
-  outreachEventName = enteredName.trim();
-  currentMode = "outreach";
-  outreachActive = false;
-  updateModeUI();
-  showStatus("OUTREACH MODE", "#2196f3", "READY", outreachEventName.toUpperCase());
+  openEventNamePrompt();
 }
 
 function disableOutreachMode() {
@@ -86,7 +120,7 @@ function disableOutreachMode() {
   outreachActive = false;
   outreachEventName = "";
   updateModeUI();
-  showStatus("MEETING MODE", "#4caf50", "READY", "");
+  showStatus("MEETING MODE", "#4caf50", "");
 }
 
 if (modeToggle) {
@@ -97,6 +131,34 @@ if (modeToggle) {
       disableOutreachMode();
     } else {
       showStatus("CHECK OUT OF OUTREACH FIRST", "#ff9800", "SCAN MEMBER PASS TO END", "");
+    }
+  });
+}
+
+if (eventPromptCancel) {
+  eventPromptCancel.addEventListener("click", closeEventNamePrompt);
+}
+
+if (eventPromptSubmit) {
+  eventPromptSubmit.addEventListener("click", submitEventName);
+}
+
+if (eventNameInput) {
+  eventNameInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      submitEventName();
+    }
+    if (event.key === "Escape") {
+      closeEventNamePrompt();
+    }
+  });
+}
+
+if (eventPromptModal) {
+  eventPromptModal.addEventListener("click", (event) => {
+    if (event.target === eventPromptModal) {
+      closeEventNamePrompt();
     }
   });
 }
