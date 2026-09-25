@@ -1,12 +1,11 @@
 // Base project config
 const SUPABASE_URL = "https://mkizsdepvbrevyojmbjq.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1raXpzZGVwdmJyZXV5b2ptYmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjA5ODIsImV4cCI6MjEwNDAzNjk4Mn0.pKpq9evw3YvmKeJ0dQBUxIYLkhPNAKcxMGQByAmNcRg";
+const MODE_STORAGE_KEY = "robostangs_mode";
+const EVENT_STORAGE_KEY = "robostangs_event_name";
 
-// Initialize using the global window.supabase object from the CDN script
-// Named dbClient so it won't collide with window.supabase
 const dbClient = window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
-// State trackers
 let lastScanId = null;
 let lastScanTime = 0;
 let hideCardTimeout = null;
@@ -14,7 +13,6 @@ let currentMode = "meeting";
 let outreachEventName = "";
 let outreachActive = false;
 
-// UI Elements
 const card = document.getElementById("status-card");
 const actionEl = document.getElementById("status-action");
 const nameEl = document.getElementById("status-name");
@@ -29,21 +27,35 @@ const eventNameInput = document.getElementById("event-name-input");
 const eventPromptCancel = document.querySelector(".event-prompt-cancel");
 const eventPromptSubmit = document.querySelector(".event-prompt-submit");
 
-// Maintain focus on scanner input, but let the mode button keep its own click
-document.addEventListener("click", (event) => {
-  const clickedToggle = event.target && event.target.closest && event.target.closest("#mode-toggle");
-  if (clickedToggle) {
-    return;
+function persistSessionState() {
+  try {
+    sessionStorage.setItem(MODE_STORAGE_KEY, currentMode);
+    if (outreachEventName) {
+      sessionStorage.setItem(EVENT_STORAGE_KEY, outreachEventName);
+    } else {
+      sessionStorage.removeItem(EVENT_STORAGE_KEY);
+    }
+  } catch (err) {
+    console.warn("Could not persist mode state:", err);
   }
+}
 
-  focusScannerInput();
-});
-window.addEventListener("load", focusScannerInput);
+function restoreSessionState() {
+  try {
+    const savedMode = sessionStorage.getItem(MODE_STORAGE_KEY);
+    const savedEvent = sessionStorage.getItem(EVENT_STORAGE_KEY);
+
+    if (savedMode === "outreach") currentMode = "outreach";
+    if (savedEvent) outreachEventName = savedEvent;
+  } catch (err) {
+    console.warn("Could not restore session state:", err);
+  }
+}
 
 function focusScannerInput() {
-  if (scannerInput) {
-    scannerInput.focus();
-  }
+  if (!scannerInput) return;
+  scannerInput.focus();
+  scannerInput.setSelectionRange(0, 0);
 }
 
 function updateModeUI() {
@@ -54,9 +66,7 @@ function updateModeUI() {
     modeToggle.textContent = isOutreach ? "OUTREACH" : "MEETING";
   }
 
-  if (appTitle) {
-    appTitle.textContent = isOutreach ? "OUTREACH" : "ROBOSTANGS";
-  }
+  if (appTitle) appTitle.textContent = isOutreach ? "OUTREACH" : "ROBOSTANGS";
 
   if (scannerPrompt) {
     scannerPrompt.textContent = isOutreach ? "SCAN TO CHECK IN / OUT" : "SCAN YOUR MEMBER PASS";
@@ -67,22 +77,23 @@ function updateModeUI() {
     eventNameLabel.textContent = showEventName ? outreachEventName.toUpperCase() : "";
     eventNameLabel.style.display = showEventName ? "block" : "none";
   }
+
+  persistSessionState();
 }
 
 function openEventNamePrompt() {
   if (!eventPromptModal || !eventNameInput) return;
-
   eventPromptModal.classList.add("visible");
   eventPromptModal.setAttribute("aria-hidden", "false");
-  eventNameInput.value = "";
+  eventNameInput.value = outreachEventName;
   setTimeout(() => eventNameInput.focus(), 50);
 }
 
 function closeEventNamePrompt() {
   if (!eventPromptModal) return;
-
   eventPromptModal.classList.remove("visible");
   eventPromptModal.setAttribute("aria-hidden", "true");
+  focusScannerInput();
 }
 
 function submitEventName() {
@@ -99,7 +110,7 @@ function submitEventName() {
   outreachActive = false;
   closeEventNamePrompt();
   updateModeUI();
-  showStatus("OUTREACH MODE", "#2196f3", outreachEventName.toUpperCase());
+  showStatus("OUTREACH MODE", "#2196f3", outreachEventName.toUpperCase(), "ACTIVE");
 }
 
 function enableOutreachMode() {
@@ -112,36 +123,33 @@ function enableOutreachMode() {
 }
 
 function disableOutreachMode() {
-  if (currentMode !== "outreach") {
-    return;
-  }
+  if (currentMode !== "outreach") return;
 
   currentMode = "meeting";
   outreachActive = false;
   outreachEventName = "";
   updateModeUI();
-  showStatus("MEETING MODE", "#4caf50", "");
+  showStatus("MEETING MODE", "#4caf50", "READY TO SCAN", "");
 }
 
 if (modeToggle) {
   modeToggle.addEventListener("click", () => {
     if (currentMode === "meeting") {
       enableOutreachMode();
-    } else if (!outreachActive) {
-      disableOutreachMode();
-    } else {
-      showStatus("CHECK OUT OF OUTREACH FIRST", "#ff9800", "SCAN MEMBER PASS TO END", "");
+      return;
     }
+
+    if (outreachActive) {
+      showStatus("CHECK OUT OF OUTREACH FIRST", "#ff9800", "SCAN MEMBER PASS TO END", "");
+      return;
+    }
+
+    disableOutreachMode();
   });
 }
 
-if (eventPromptCancel) {
-  eventPromptCancel.addEventListener("click", closeEventNamePrompt);
-}
-
-if (eventPromptSubmit) {
-  eventPromptSubmit.addEventListener("click", submitEventName);
-}
+if (eventPromptCancel) eventPromptCancel.addEventListener("click", closeEventNamePrompt);
+if (eventPromptSubmit) eventPromptSubmit.addEventListener("click", submitEventName);
 
 if (eventNameInput) {
   eventNameInput.addEventListener("keydown", (event) => {
@@ -149,6 +157,7 @@ if (eventNameInput) {
       event.preventDefault();
       submitEventName();
     }
+
     if (event.key === "Escape") {
       closeEventNamePrompt();
     }
@@ -157,28 +166,37 @@ if (eventNameInput) {
 
 if (eventPromptModal) {
   eventPromptModal.addEventListener("click", (event) => {
-    if (event.target === eventPromptModal) {
-      closeEventNamePrompt();
-    }
+    if (event.target === eventPromptModal) closeEventNamePrompt();
   });
 }
 
-// Capture Barcode Input
 if (scannerInput) {
-  scannerInput.addEventListener("keydown", async (e) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      const decodedText = scannerInput.value.trim();
-      scannerInput.value = "";
+  scannerInput.setAttribute("autocomplete", "off");
+  scannerInput.setAttribute("autocorrect", "off");
+  scannerInput.setAttribute("autocapitalize", "none");
+  scannerInput.setAttribute("spellcheck", "false");
+  scannerInput.setAttribute("inputmode", "none");
 
-      if (decodedText) {
-        await handleScan(decodedText);
-      }
-    }
+  scannerInput.addEventListener("keydown", async (event) => {
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    const decodedText = scannerInput.value.trim();
+    scannerInput.value = "";
+
+    if (decodedText) await handleScan(decodedText);
   });
+
+  scannerInput.addEventListener("blur", () => setTimeout(focusScannerInput, 50));
 }
 
-// Handle Scanned Member ID
+document.addEventListener("click", (event) => {
+  if (event.target && event.target.closest("#mode-toggle")) return;
+  focusScannerInput();
+});
+window.addEventListener("focus", focusScannerInput);
+window.addEventListener("load", focusScannerInput);
+
 async function handleScan(decodedText) {
   const currentTime = Date.now();
 
@@ -187,8 +205,7 @@ async function handleScan(decodedText) {
     return;
   }
 
-  // Prevent double scans within 10 seconds
-  if (decodedText === lastScanId && (currentTime - lastScanTime) < 10000) {
+  if (decodedText === lastScanId && currentTime - lastScanTime < 10000) {
     console.log("Duplicate scan ignored:", decodedText);
     return;
   }
@@ -197,10 +214,9 @@ async function handleScan(decodedText) {
   lastScanTime = currentTime;
 
   try {
-    // 1. Look up member
     const { data: member, error: memberError } = await dbClient
       .from("members")
-      .select("member_id, full_name, group")
+      .select("member_id, full_name")
       .eq("member_id", decodedText)
       .maybeSingle();
 
@@ -209,7 +225,6 @@ async function handleScan(decodedText) {
       return;
     }
 
-    // 2. Check for active check-in
     const { data: activeLog, error: logError } = await dbClient
       .from("attendance")
       .select("id")
@@ -222,10 +237,9 @@ async function handleScan(decodedText) {
       return;
     }
 
-    const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const timeString = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
     if (activeLog) {
-      // CHECK OUT
       const { error: updateError } = await dbClient
         .from("attendance")
         .update({ check_out: new Date().toISOString() })
@@ -233,33 +247,27 @@ async function handleScan(decodedText) {
 
       if (updateError) throw updateError;
 
-      if (currentMode === "outreach") {
-        outreachActive = false;
-      }
+      if (currentMode === "outreach") outreachActive = false;
 
       showStatus("CHECKED OUT", "#ff9800", member.full_name.toUpperCase(), `AT ${timeString}`);
-    } else {
-      // CHECK IN
-      const { error: insertError } = await dbClient
-        .from("attendance")
-        .insert([{ member_id: decodedText, check_in: new Date().toISOString() }]);
-
-      if (insertError) throw insertError;
-
-      if (currentMode === "outreach") {
-        outreachActive = true;
-      }
-
-      showStatus("CHECKED IN", "#4caf50", member.full_name.toUpperCase(), `AT ${timeString}`);
+      return;
     }
 
+    const { error: insertError } = await dbClient
+      .from("attendance")
+      .insert([{ member_id: decodedText, check_in: new Date().toISOString() }]);
+
+    if (insertError) throw insertError;
+
+    if (currentMode === "outreach") outreachActive = true;
+
+    showStatus("CHECKED IN", "#4caf50", member.full_name.toUpperCase(), `AT ${timeString}`);
   } catch (err) {
     console.error("Scan processing error:", err);
     showStatus("SYSTEM ERROR", "#f44336", "PLEASE SIGN IN MANUALLY", "TRY AGAIN");
   }
 }
 
-// Explicitly bind to window for DevTools access
 window.handleScan = handleScan;
 
 function showStatus(action, color, name, time) {
@@ -270,12 +278,15 @@ function showStatus(action, color, name, time) {
   nameEl.textContent = name;
   timeEl.textContent = time;
   card.style.display = "block";
+  card.style.borderColor = color;
+  card.style.background = "rgba(20, 33, 40, 0.96)";
 
-  if (hideCardTimeout) clearTimeout(hideCardTimeout);
+  clearTimeout(hideCardTimeout);
   hideCardTimeout = setTimeout(() => {
     card.style.display = "none";
     focusScannerInput();
-  }, 4000);
+  }, 3500);
 }
 
+restoreSessionState();
 updateModeUI();
