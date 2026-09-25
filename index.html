@@ -2,58 +2,128 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Attendance App</title>
   <style>
-    body {
-      background-color: #0d1b24;
-      color: #ffffff;
-      font-family: sans-serif;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-      position: relative;
+    :root {
+      --bg: #090909;
+      --panel: rgba(18, 18, 18, 0.9);
+      --panel-alt: #121212;
+      --accent: #ff7a1a;
+      --accent-soft: #ffb067;
+      --text: #ff8a2e;
+      --muted: #f5caa1;
+      --success: #ff9a3d;
+      --warning: #ffb347;
+      --danger: #ff5a36;
+      --info: #ffd29d;
+      --shadow: rgba(0, 0, 0, 0.35);
     }
-    .view { display: block; }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      overscroll-behavior: contain;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+      text-align: center;
+    }
+
+    body {
+      position: relative;
+      padding: 24px 20px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .view {
+      display: block;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      padding-top: 60px;
+    }
 
     #mode-toggle {
       position: absolute;
       top: 18px;
       left: 18px;
-      width: 118px;
-      height: 44px;
-      border-radius: 10px;
-      border: 2px solid #e06328;
-      background: #1a2f3b;
-      color: #ffffff;
+      width: 128px;
+      height: 52px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 122, 26, 0.35);
+      background: rgba(18, 18, 18, 0.95);
+      color: var(--text);
       font-weight: 700;
       font-size: 12px;
+      letter-spacing: 0.08em;
       cursor: pointer;
       z-index: 2;
+      transition: all 0.18s ease;
+      box-shadow: 0 6px 18px var(--shadow);
+    }
+
+    #mode-toggle:active {
+      transform: scale(0.98);
     }
 
     #mode-toggle.outreach {
-      background: #e06328;
-      border-color: #f6b87a;
-      color: #111827;
+      background: var(--accent);
+      border-color: rgba(255, 178, 103, 0.5);
+      color: #111111;
     }
 
     #event-name-label {
       position: absolute;
-      top: 18px;
-      right: 18px;
-      font-size: 18px;
+      top: 20px;
+      right: 20px;
+      max-width: min(40vw, 420px);
+      font-size: clamp(14px, 2vw, 20px);
       font-weight: 700;
-      color: #f5d7a2;
+      color: var(--muted);
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.03em;
       display: none;
       z-index: 2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #app-title {
+      margin: 0 0 12px;
+      font-size: clamp(38px, 7vw, 72px);
+      font-weight: 900;
+      line-height: 1.05;
+      letter-spacing: 0.04em;
+    }
+
+    #scanner-prompt {
+      margin: 0 0 24px;
+      font-size: clamp(18px, 2.6vw, 28px);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      color: var(--muted);
     }
 
     #event-prompt-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0, 0, 0, 0.72);
+      background: rgba(0, 0, 0, 0.7);
       display: none;
       align-items: center;
       justify-content: center;
@@ -66,61 +136,110 @@
 
     .event-prompt-card {
       width: min(420px, calc(100vw - 32px));
-      background: #1a2f3b;
-      border: 2px solid #e06328;
-      border-radius: 16px;
-      padding: 24px 20px 18px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      background: rgba(18, 18, 18, 0.98);
+      border: 1px solid rgba(255, 122, 26, 0.1);
+      border-radius: 24px;
+      padding: 20px 18px 16px;
+      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
     }
 
     .event-prompt-card h2 {
-      margin: 0 0 14px;
-      font-size: 24px;
-      color: #ffffff;
+      margin: 0 0 10px;
+      font-size: clamp(22px, 3.4vw, 28px);
+      color: var(--text);
+      font-weight: 700;
+      letter-spacing: -0.05em;
     }
 
     .event-prompt-card input {
       width: 100%;
       box-sizing: border-box;
-      padding: 12px 14px;
-      border-radius: 10px;
-      border: 1px solid #e06328;
-      font-size: 18px;
+      padding: 14px 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 122, 26, 0.15);
+      font-size: 20px;
       margin-bottom: 16px;
+      background: #101010;
+      color: var(--text);
+      outline: none;
     }
 
     .event-prompt-actions {
       display: flex;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 8px;
     }
 
     .event-prompt-actions button {
       border: none;
-      border-radius: 10px;
-      padding: 10px 18px;
-      font-weight: 700;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-weight: 600;
       cursor: pointer;
+      min-height: 42px;
+      letter-spacing: -0.02em;
     }
 
     .event-prompt-cancel {
-      background: #374151;
-      color: #fff;
+      background: rgba(255, 122, 26, 0.06);
+      color: var(--text);
     }
 
     .event-prompt-submit {
-      background: #e06328;
-      color: #111827;
+      background: var(--accent);
+      color: #111111;
+      box-shadow: none;
     }
 
     #status-card {
       display: none;
-      margin: 20px auto;
-      padding: 20px;
-      width: 300px;
-      background: #1a2f3b;
-      border: 2px solid #e06328;
-      border-radius: 8px;
+      width: min(82vw, 520px);
+      text-align: center;
+      padding: 24px 22px;
+      background: rgba(18, 18, 18, 0.96);
+      border: 1px solid rgba(255, 122, 26, 0.35);
+      border-radius: 22px;
+      box-shadow: 0 18px 38px rgba(0, 0, 0, 0.28);
+      margin: 0 auto;
+      transition: all 0.2s ease;
+    }
+
+    #status-action {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 42px);
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    #status-name {
+      margin: 12px 0 8px;
+      font-size: clamp(20px, 3.5vw, 36px);
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.2;
+      word-break: break-word;
+    }
+
+    #status-time {
+      margin: 0;
+      color: var(--muted);
+      font-size: clamp(14px, 2vw, 18px);
+      font-weight: 600;
+      letter-spacing: 0.01em;
+      text-transform: uppercase;
+    }
+
+    #scanner-input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+      border: none;
+      padding: 0;
+      margin: 0;
+      transform: scale(0.1);
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
