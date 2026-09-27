@@ -148,18 +148,20 @@ window.addEventListener("load", focusScannerInput);
 
 function updateModeUI() {
   const isOutreach = currentMode === "outreach";
-  const outreachLabel = isOutreach && outreachEventName ? outreachEventName.toUpperCase() : "OUTREACH";
+  const trimmedEventName = outreachEventName ? outreachEventName.trim() : "";
 
   if (modeToggle) {
     modeToggle.classList.toggle("outreach", isOutreach);
-    modeToggle.textContent = isOutreach ? outreachLabel : "MEETING";
+    modeToggle.textContent = isOutreach
+      ? (trimmedEventName ? trimmedEventName.toUpperCase() : "OUTREACH")
+      : "MEETING";
   }
 
   if (scannerPrompt) {
-    if (isOutreach && outreachEventName) {
-      scannerPrompt.textContent = outreachEventName.toUpperCase();
+    if (isOutreach) {
+      scannerPrompt.textContent = trimmedEventName ? trimmedEventName.toUpperCase() : "SCAN TO CHECK IN / OUT";
     } else {
-      scannerPrompt.textContent = isOutreach ? "SCAN TO CHECK IN / OUT" : "SCAN YOUR MEMBER PASS";
+      scannerPrompt.textContent = "SCAN YOUR MEMBER PASS";
     }
   }
 
