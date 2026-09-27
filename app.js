@@ -158,8 +158,14 @@ function updateModeUI() {
   }
 
   if (scannerPrompt) {
-    if (isOutreach) {
-      scannerPrompt.textContent = trimmedEventName ? trimmedEventName.toUpperCase() : "SCAN TO CHECK IN / OUT";
+    scannerPrompt.classList.remove("outreach-event", "outreach-instruction");
+
+    if (isOutreach && trimmedEventName) {
+      scannerPrompt.textContent = trimmedEventName.toUpperCase();
+      scannerPrompt.classList.add("outreach-event");
+    } else if (isOutreach) {
+      scannerPrompt.textContent = "SCAN IN / SCAN OUT";
+      scannerPrompt.classList.add("outreach-instruction");
     } else {
       scannerPrompt.textContent = "SCAN YOUR MEMBER PASS";
     }

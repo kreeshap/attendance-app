@@ -94,6 +94,23 @@ body {
   font-weight: 700;
   letter-spacing: 0.03em;
   color: var(--muted);
+  line-height: 1.2;
+}
+
+#scanner-prompt.outreach-event {
+  margin-top: 8px;
+  font-size: clamp(20px, 3vw, 34px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--text);
+}
+
+#scanner-prompt.outreach-instruction {
+  font-size: clamp(16px, 2vw, 22px);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 #event-prompt-modal {
