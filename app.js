@@ -148,10 +148,11 @@ window.addEventListener("load", focusScannerInput);
 
 function updateModeUI() {
   const isOutreach = currentMode === "outreach";
+  const outreachLabel = isOutreach && outreachEventName ? outreachEventName.toUpperCase() : "OUTREACH";
 
   if (modeToggle) {
     modeToggle.classList.toggle("outreach", isOutreach);
-    modeToggle.textContent = isOutreach ? "OUTREACH" : "MEETING";
+    modeToggle.textContent = isOutreach ? outreachLabel : "MEETING";
   }
 
   if (scannerPrompt) {
