@@ -58,52 +58,6 @@
       padding-top: 60px;
     }
 
-    #mode-toggle {
-      position: absolute;
-      top: 18px;
-      left: 18px;
-      width: 128px;
-      height: 52px;
-      border-radius: 999px;
-      border: 1px solid rgba(255, 122, 26, 0.35);
-      background: rgba(18, 18, 18, 0.95);
-      color: var(--text);
-      font-weight: 700;
-      font-size: 12px;
-      letter-spacing: 0.08em;
-      cursor: pointer;
-      z-index: 2;
-      transition: all 0.18s ease;
-      box-shadow: 0 6px 18px var(--shadow);
-    }
-
-    #mode-toggle:active {
-      transform: scale(0.98);
-    }
-
-    #mode-toggle.outreach {
-      background: var(--accent);
-      border-color: rgba(255, 178, 103, 0.5);
-      color: #111111;
-    }
-
-    #event-name-label {
-      position: absolute;
-      top: 20px;
-      right: 20px;
-      max-width: min(40vw, 420px);
-      font-size: clamp(14px, 2vw, 20px);
-      font-weight: 700;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.03em;
-      display: none;
-      z-index: 2;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     #app-title {
       margin: 0 0 12px;
       font-size: clamp(38px, 7vw, 72px);
@@ -118,81 +72,6 @@
       font-weight: 700;
       letter-spacing: 0.03em;
       color: var(--muted);
-    }
-
-    #event-prompt-modal {
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.7);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 20;
-    }
-
-    #event-prompt-modal.visible {
-      display: flex;
-    }
-
-    .event-prompt-card {
-      width: min(420px, calc(100vw - 32px));
-      background: rgba(18, 18, 18, 0.98);
-      border: 1px solid rgba(255, 122, 26, 0.1);
-      border-radius: 24px;
-      padding: 20px 18px 16px;
-      box-shadow: 0 14px 28px rgba(0, 0, 0, 0.28);
-      pointer-events: auto;
-    }
-
-    .event-prompt-card h2 {
-      margin: 0 0 10px;
-      font-size: clamp(22px, 3.4vw, 28px);
-      color: var(--text);
-      font-weight: 700;
-      letter-spacing: -0.05em;
-    }
-
-    .event-prompt-card input {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 14px 12px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 122, 26, 0.15);
-      font-size: 20px;
-      margin-bottom: 16px;
-      background: #101010;
-      color: var(--text);
-      outline: none;
-      pointer-events: auto;
-      -webkit-user-select: text;
-      user-select: text;
-    }
-
-    .event-prompt-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 8px;
-    }
-
-    .event-prompt-actions button {
-      border: none;
-      border-radius: 999px;
-      padding: 10px 16px;
-      font-weight: 600;
-      cursor: pointer;
-      min-height: 42px;
-      letter-spacing: -0.02em;
-    }
-
-    .event-prompt-cancel {
-      background: rgba(255, 122, 26, 0.06);
-      color: var(--text);
-    }
-
-    .event-prompt-submit {
-      background: var(--accent);
-      color: #111111;
-      box-shadow: none;
     }
 
     #status-card {
@@ -250,20 +129,6 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-
-  <button id="mode-toggle" type="button">MEETING</button>
-  <div id="event-name-label">EVENT NAME</div>
-
-  <div id="event-prompt-modal" aria-hidden="true">
-    <div class="event-prompt-card">
-      <h2>Enter Event Name</h2>
-      <input id="event-name-input" type="text" maxlength="80" placeholder="Event name" />
-      <div class="event-prompt-actions">
-        <button type="button" class="event-prompt-cancel">Cancel</button>
-        <button type="button" class="event-prompt-submit">OK</button>
-      </div>
-    </div>
-  </div>
 
   <!-- SCANNER VIEW -->
   <div id="scanner-view" class="view">
