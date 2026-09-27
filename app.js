@@ -205,12 +205,10 @@ function submitEventName() {
   outreachActive = false;
   closeEventNamePrompt();
   updateModeUI();
-  showStatus("OUTREACH MODE", "#2196f3", outreachEventName.toUpperCase(), "ACTIVE");
 }
 
 function enableOutreachMode() {
   if (currentMode === "outreach" && outreachActive) {
-    showStatus("OUTREACH ACTIVE", "#ff9800", "CHECK OUT FIRST", "");
     return;
   }
 
@@ -226,7 +224,6 @@ function disableOutreachMode() {
   outreachActive = false;
   outreachEventName = "";
   updateModeUI();
-  showStatus("MEETING MODE", "#4caf50", "READY TO SCAN", "");
 }
 
 if (modeToggle) {
@@ -235,8 +232,6 @@ if (modeToggle) {
       enableOutreachMode();
     } else if (!outreachActive) {
       disableOutreachMode();
-    } else {
-      showStatus("CHECK OUT OF OUTREACH FIRST", "#ff9800", "SCAN MEMBER PASS TO END", "");
     }
   });
 }
