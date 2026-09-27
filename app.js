@@ -70,6 +70,7 @@ const timeEl = document.getElementById("status-time");
 const scannerInput = document.getElementById("scanner-input");
 const modeToggle = document.getElementById("mode-toggle");
 const scannerPrompt = document.getElementById("scanner-prompt");
+const scannerSubtext = document.getElementById("scanner-subtext");
 const eventPromptModal = document.getElementById("event-prompt-modal");
 const eventNameInput = document.getElementById("event-name-input");
 const eventPromptCancel = document.querySelector(".event-prompt-cancel");
@@ -152,22 +153,23 @@ function updateModeUI() {
 
   if (modeToggle) {
     modeToggle.classList.toggle("outreach", isOutreach);
-    modeToggle.textContent = isOutreach
-      ? (trimmedEventName ? trimmedEventName.toUpperCase() : "OUTREACH")
-      : "MEETING";
+    modeToggle.textContent = isOutreach ? "OUTREACH" : "MEETING";
   }
 
   if (scannerPrompt) {
-    scannerPrompt.classList.remove("outreach-event", "outreach-instruction");
-
-    if (isOutreach && trimmedEventName) {
-      scannerPrompt.textContent = trimmedEventName.toUpperCase();
-      scannerPrompt.classList.add("outreach-event");
-    } else if (isOutreach) {
-      scannerPrompt.textContent = "SCAN IN / SCAN OUT";
-      scannerPrompt.classList.add("outreach-instruction");
+    if (isOutreach) {
+      scannerPrompt.textContent = trimmedEventName ? trimmedEventName.toUpperCase() : "SCAN IN / SCAN OUT";
     } else {
       scannerPrompt.textContent = "SCAN YOUR MEMBER PASS";
+    }
+  }
+
+  if (scannerSubtext) {
+    if (isOutreach) {
+      scannerSubtext.textContent = "SCAN IN / SCAN OUT";
+      scannerSubtext.style.display = "block";
+    } else {
+      scannerSubtext.style.display = "none";
     }
   }
 
