@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     modeToggle: document.getElementById("mode-toggle"),
     scannerPrompt: document.getElementById("scanner-prompt"),
     scannerSubtext: document.getElementById("scanner-subtext"),
+    appTitle: document.getElementById("app-title"),
     eventPromptModal: document.getElementById("event-prompt-modal"),
     eventNameInput: document.getElementById("event-name-input"),
     eventPromptCancel: document.querySelector(".event-prompt-cancel"),

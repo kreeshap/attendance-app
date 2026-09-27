@@ -54,6 +54,7 @@
       modeToggle,
       scannerPrompt,
       scannerSubtext,
+      appTitle,
       eventPromptModal,
       eventNameInput,
       eventPromptCancel,
@@ -131,6 +132,10 @@
       if (modeToggle) {
         modeToggle.classList.toggle("outreach", isOutreach);
         modeToggle.textContent = isOutreach ? "OUTREACH" : "MEETING";
+      }
+
+      if (appTitle) {
+        appTitle.style.display = isOutreach ? "none" : "block";
       }
 
       if (scannerPrompt) {
