@@ -141,8 +141,10 @@
       if (scannerPrompt) {
         if (isOutreach) {
           scannerPrompt.textContent = trimmedEventName ? trimmedEventName.toUpperCase() : "SCAN IN / SCAN OUT";
+          scannerPrompt.style.display = "block";
         } else {
-          scannerPrompt.textContent = "SCAN YOUR MEMBER PASS";
+          scannerPrompt.textContent = "";
+          scannerPrompt.style.display = "none";
         }
       }
 
@@ -151,7 +153,8 @@
           scannerSubtext.textContent = "SCAN IN / SCAN OUT";
           scannerSubtext.style.display = "block";
         } else {
-          scannerSubtext.style.display = "none";
+          scannerSubtext.textContent = "SCAN YOUR MEMBER PASS";
+          scannerSubtext.style.display = "block";
         }
       }
 
