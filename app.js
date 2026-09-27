@@ -267,6 +267,8 @@ if (eventNameInput) {
   });
 }
 
+//testing
+
 if (eventPromptModal) {
   eventPromptModal.addEventListener("click", (event) => {
     if (event.target === eventPromptModal) {
