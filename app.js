@@ -6,9 +6,10 @@ document.addEventListener("DOMContentLoaded", () => {
     scannerSubtext: document.getElementById("scanner-subtext"),
     appTitle: document.getElementById("app-title"),
     eventPromptModal: document.getElementById("event-prompt-modal"),
-    eventNameInput: document.getElementById("event-name-input"),
     eventPromptCancel: document.querySelector(".event-prompt-cancel"),
-    eventPromptSubmit: document.querySelector(".event-prompt-submit")
+    eventPromptSubmit: document.querySelector(".event-prompt-submit"),
+    eventSelectionList: document.getElementById("event-selection-list"),
+    eventSelectionTitle: document.getElementById("event-selection-title")
   };
 
   const app = window.AttendanceLogic.createAttendanceApp(elements);

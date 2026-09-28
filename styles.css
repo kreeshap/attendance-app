@@ -106,7 +106,6 @@ body {
   color: var(--muted);
 }
 
-
 #event-prompt-modal {
   position: fixed;
   inset: 0;
@@ -180,6 +179,69 @@ body {
   background: var(--accent);
   color: #111111;
   box-shadow: none;
+}
+
+.event-selection-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-height: min(58vh, 420px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.event-selection-empty {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.event-option-card {
+  width: 100%;
+  border: 1px solid rgba(255, 122, 26, 0.32);
+  background: rgba(255, 122, 26, 0.06);
+  border-radius: 16px;
+  color: var(--text);
+  padding: 14px 16px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.18);
+}
+
+.event-option-card:hover {
+  border-color: rgba(255, 122, 26, 0.54);
+  background: rgba(255, 122, 26, 0.12);
+}
+
+.event-option-card.selected {
+  border-color: rgba(255, 122, 26, 0.9);
+  background: rgba(255, 122, 26, 0.18);
+  box-shadow: 0 0 0 2px rgba(255, 122, 26, 0.26);
+}
+
+.event-option-card:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.event-option-name {
+  font-size: clamp(18px, 2.7vw, 26px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text);
+}
+
+.event-option-meta {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.4;
 }
 
 #status-card {

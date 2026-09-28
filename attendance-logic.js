@@ -1,9 +1,83 @@
 (function () {
-  const SUPABASE_URL = "https://mkizsdepvbrevyojmbjq.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1raXpzZGVwdmJyZXV5b2ptYmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjA5ODIsImV4cCI6MjEwNDAzNjk4Mn0.pKpq9evw3YvmKeJ0dQBUxIYLkhPNAKcxMGQByAmNcRg";
+  const SUPABASE_URL = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_URL__) ? String(window.__ROBOSTANGS_SUPABASE_URL__).trim() : "";
+  const SUPABASE_ANON_KEY = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_ANON_KEY__) ? String(window.__ROBOSTANGS_SUPABASE_ANON_KEY__).trim() : "";
 
   const MODE_STORAGE_KEY = "robostangs_mode";
   const EVENT_STORAGE_KEY = "robostangs_event_name";
+  const EVENT_ID_STORAGE_KEY = "robostangs_event_id";
+  const EVENT_NAME_STORAGE_KEY = "robostangs_event_name_v2";
+
+  const CALENDAR_DEV_EVENTS = window.__ROBOSTANGS_CALENDAR_EVENTS__ || [
+    {
+      id: "dev-event-1",
+      name: "Community Night",
+      start: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
+      end: new Date(new Date().setHours(19, 0, 0, 0)).toISOString(),
+      location: "Main Hall"
+    },
+    {
+      id: "dev-event-2",
+      name: "STEM Demo",
+      start: new Date(new Date().setHours(18, 30, 0, 0)).toISOString(),
+      end: new Date(new Date().setHours(20, 0, 0, 0)).toISOString(),
+      location: "Workshop Lab"
+    }
+  ];
+
+  function formatCalendarEventTime(value) {
+    if (!value) return "TBD";
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) {
+      return String(value);
+    }
+
+    return new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit"
+    }).format(date);
+  }
+
+  async function getTodaysCalendarEvents() {
+    const customEvents = window.__ROBOSTANGS_CALENDAR_EVENTS__;
+    const source = Array.isArray(customEvents) ? customEvents : CALENDAR_DEV_EVENTS;
+
+    return source
+      .filter((event) => {
+        if (!event || !event.start) return false;
+
+        const eventDate = new Date(event.start);
+        if (Number.isNaN(eventDate.getTime())) return false;
+
+        const eventDay = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/New_York",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).format(eventDate);
+
+        const today = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/New_York",
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit"
+        }).format(new Date());
+
+        return eventDay === today;
+      })
+      .map((event) => ({
+        id: String(event.id || `event-${Math.random().toString(36).slice(2, 10)}`),
+        name: event.name || "Untitled event",
+        start: event.start,
+        end: event.end || event.start,
+        location: event.location || null
+      }))
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+  }
 
   function decodeJwtPayload(jwt) {
     if (!jwt || typeof jwt !== "string" || !jwt.includes(".")) {
@@ -56,12 +130,13 @@
       scannerSubtext,
       appTitle,
       eventPromptModal,
-      eventNameInput,
       eventPromptCancel,
-      eventPromptSubmit
+      eventPromptSubmit,
+      eventSelectionList,
+      eventSelectionTitle
     } = elements;
 
-    const dbClient = window.supabase && validateSupabaseConfig(SUPABASE_URL, SUPABASE_ANON_KEY)
+    const dbClient = window.supabase && SUPABASE_URL && SUPABASE_ANON_KEY && validateSupabaseConfig(SUPABASE_URL, SUPABASE_ANON_KEY)
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
 
@@ -70,7 +145,8 @@
     let hideCardTimeout = null;
     let currentMode = "meeting";
     let outreachEventName = "";
-    let outreachActive = false;
+    let selectedEventId = "";
+    let pendingSelection = null;
 
     const card = document.getElementById("status-card");
     const actionEl = document.getElementById("status-action");
@@ -85,11 +161,28 @@
       }
     }
 
+    function clearSelectedOutreachEvent() {
+      selectedEventId = "";
+      outreachEventName = "";
+      pendingSelection = null;
+    }
+
     function saveEventState() {
       try {
-        if (outreachEventName) {
-          sessionStorage.setItem(EVENT_STORAGE_KEY, outreachEventName);
+        const selectedId = selectedEventId ? String(selectedEventId).trim() : "";
+        const eventName = outreachEventName ? outreachEventName.trim() : "";
+
+        if (selectedId) {
+          sessionStorage.setItem(EVENT_ID_STORAGE_KEY, selectedId);
         } else {
+          sessionStorage.removeItem(EVENT_ID_STORAGE_KEY);
+        }
+
+        if (eventName) {
+          sessionStorage.setItem(EVENT_NAME_STORAGE_KEY, eventName);
+          sessionStorage.setItem(EVENT_STORAGE_KEY, eventName);
+        } else {
+          sessionStorage.removeItem(EVENT_NAME_STORAGE_KEY);
           sessionStorage.removeItem(EVENT_STORAGE_KEY);
         }
       } catch (err) {
@@ -100,14 +193,28 @@
     function restoreSessionState() {
       try {
         const savedMode = sessionStorage.getItem(MODE_STORAGE_KEY);
-        const savedEvent = sessionStorage.getItem(EVENT_STORAGE_KEY);
+        const savedEventId = sessionStorage.getItem(EVENT_ID_STORAGE_KEY);
+        const savedEventName = sessionStorage.getItem(EVENT_NAME_STORAGE_KEY) || sessionStorage.getItem(EVENT_STORAGE_KEY);
 
-        if (savedMode === "outreach") {
-          currentMode = "outreach";
+        if (savedEventId) {
+          selectedEventId = savedEventId;
+        } else {
+          selectedEventId = "";
         }
 
-        if (savedEvent) {
-          outreachEventName = savedEvent;
+        if (savedEventName) {
+          outreachEventName = savedEventName;
+        } else {
+          outreachEventName = "";
+        }
+
+        const hasValidOutreachState = Boolean(selectedEventId && outreachEventName);
+
+        if (savedMode === "outreach" && hasValidOutreachState) {
+          currentMode = "outreach";
+        } else {
+          currentMode = "meeting";
+          clearSelectedOutreachEvent();
         }
       } catch (err) {
         console.warn("Could not restore session state:", err);
@@ -162,55 +269,148 @@
       saveEventState();
     }
 
-    function openEventNamePrompt() {
-      if (!eventPromptModal || !eventNameInput) return;
-
-      eventPromptModal.classList.add("visible");
-      eventPromptModal.setAttribute("aria-hidden", "false");
-      eventNameInput.value = outreachEventName;
-      setTimeout(() => eventNameInput.focus(), 50);
-    }
-
-    function closeEventNamePrompt() {
+    function closeEventSelectionModal() {
       if (!eventPromptModal) return;
 
       eventPromptModal.classList.remove("visible");
       eventPromptModal.setAttribute("aria-hidden", "true");
+      if (eventSelectionList) {
+        eventSelectionList.innerHTML = "";
+      }
+      if (eventSelectionTitle) {
+        eventSelectionTitle.textContent = "Select today's event";
+      }
+      if (eventPromptSubmit) {
+        eventPromptSubmit.disabled = true;
+        eventPromptSubmit.style.display = "inline-flex";
+        eventPromptSubmit.textContent = "Confirm";
+      }
+      pendingSelection = null;
       focusScannerInput();
     }
 
-    function submitEventName() {
-      const enteredName = eventNameInput ? eventNameInput.value.trim() : "";
+    function chooseCalendarEvent(event) {
+      if (!event) return;
 
-      if (!enteredName) {
-        closeEventNamePrompt();
-        return;
-      }
-
-      outreachEventName = enteredName;
+      selectedEventId = event.id || "";
+      outreachEventName = event.name || "";
       currentMode = "outreach";
-      outreachActive = false;
-      closeEventNamePrompt();
+      closeEventSelectionModal();
       updateModeUI();
     }
 
-    function enableOutreachMode() {
-      if (currentMode === "outreach" && outreachActive) {
+    function renderEventSelectionList(events) {
+      if (!eventSelectionList) {
         return;
       }
 
-      openEventNamePrompt();
+      eventSelectionList.innerHTML = "";
+      pendingSelection = null;
+
+      if (!Array.isArray(events) || events.length === 0) {
+        if (eventSelectionTitle) {
+          eventSelectionTitle.textContent = "No outreach events scheduled for today.";
+        }
+        const emptyMessage = document.createElement("p");
+        emptyMessage.className = "event-selection-empty";
+        emptyMessage.textContent = "No outreach events scheduled for today.";
+        eventSelectionList.appendChild(emptyMessage);
+        if (eventPromptSubmit) {
+          eventPromptSubmit.disabled = true;
+          eventPromptSubmit.textContent = "Close";
+          eventPromptSubmit.style.display = "inline-flex";
+        }
+        return;
+      }
+
+      if (events.length === 1) {
+        if (eventSelectionTitle) {
+          eventSelectionTitle.textContent = "Confirm event";
+        }
+
+        const event = events[0];
+        const card = document.createElement("button");
+        card.type = "button";
+        card.className = "event-option-card event-option-card-single";
+        card.dataset.eventId = event.id || "";
+        card.dataset.eventName = event.name || "";
+        card.innerHTML = `
+          <span class="event-option-name">${event.name || "Untitled event"}</span>
+          <span class="event-option-meta">${formatCalendarEventTime(event.start)} - ${formatCalendarEventTime(event.end)}</span>
+          <span class="event-option-meta">${event.location ? event.location : "Location TBD"}</span>
+        `;
+        card.addEventListener("click", () => {
+          pendingSelection = event;
+          const allCards = eventSelectionList.querySelectorAll(".event-option-card");
+          allCards.forEach((item) => item.classList.toggle("selected", item === card));
+          if (eventPromptSubmit) {
+            eventPromptSubmit.disabled = false;
+          }
+        });
+        eventSelectionList.appendChild(card);
+
+        if (eventPromptSubmit) {
+          eventPromptSubmit.disabled = false;
+          eventPromptSubmit.textContent = "Confirm event";
+          eventPromptSubmit.onclick = () => {
+            if (!pendingSelection) {
+              pendingSelection = event;
+            }
+            chooseCalendarEvent(pendingSelection || event);
+          };
+        }
+        return;
+      }
+
+      if (eventSelectionTitle) {
+        eventSelectionTitle.textContent = "Select today's event";
+      }
+
+      if (eventPromptSubmit) {
+        eventPromptSubmit.disabled = true;
+        eventPromptSubmit.textContent = "Confirm";
+        eventPromptSubmit.onclick = () => {
+          if (!pendingSelection) {
+            return;
+          }
+          chooseCalendarEvent(pendingSelection);
+        };
+      }
+
+      events.forEach((event) => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "event-option-card";
+        option.dataset.eventId = event.id || "";
+        option.dataset.eventName = event.name || "";
+        option.innerHTML = `
+          <span class="event-option-name">${event.name || "Untitled event"}</span>
+          <span class="event-option-meta">Starts: ${formatCalendarEventTime(event.start)}</span>
+          <span class="event-option-meta">Ends: ${formatCalendarEventTime(event.end)}</span>
+          <span class="event-option-meta">${event.location ? event.location : "Location TBD"}</span>
+        `;
+        option.addEventListener("click", () => {
+          pendingSelection = event;
+          const allOptions = eventSelectionList.querySelectorAll(".event-option-card");
+          allOptions.forEach((item) => item.classList.toggle("selected", item === option));
+          if (eventPromptSubmit) {
+            eventPromptSubmit.disabled = false;
+          }
+        });
+        eventSelectionList.appendChild(option);
+      });
     }
 
-    function disableOutreachMode() {
-      if (currentMode !== "outreach") {
-        return;
-      }
+    async function openEventSelectionModal() {
+      if (!eventPromptModal) return;
 
-      currentMode = "meeting";
-      outreachActive = false;
-      outreachEventName = "";
-      updateModeUI();
+      const events = await getTodaysCalendarEvents();
+      renderEventSelectionList(events);
+      if (eventPromptSubmit) {
+        eventPromptSubmit.disabled = events.length === 0 || (events.length > 1 && !pendingSelection);
+      }
+      eventPromptModal.classList.add("visible");
+      eventPromptModal.setAttribute("aria-hidden", "false");
     }
 
     function isSupabaseAuthFailure(error) {
@@ -340,50 +540,39 @@
 
     function bind() {
       if (modeToggle) {
-        modeToggle.addEventListener("click", () => {
+        modeToggle.addEventListener("click", async () => {
           if (currentMode === "meeting") {
-            enableOutreachMode();
-          } else if (!outreachActive) {
-            disableOutreachMode();
+            await openEventSelectionModal();
+          } else {
+            currentMode = "meeting";
+            clearSelectedOutreachEvent();
+            updateModeUI();
           }
         });
       }
 
       if (eventPromptCancel) {
-        eventPromptCancel.addEventListener("click", closeEventNamePrompt);
+        eventPromptCancel.addEventListener("click", () => {
+          closeEventSelectionModal();
+          if (currentMode === "meeting") {
+            clearSelectedOutreachEvent();
+            updateModeUI();
+          }
+        });
       }
 
       if (eventPromptSubmit) {
-        eventPromptSubmit.addEventListener("click", submitEventName);
-      }
-
-      if (eventNameInput) {
-        eventNameInput.addEventListener("pointerdown", (event) => {
-          event.stopPropagation();
-        });
-
-        eventNameInput.addEventListener("focus", () => {
-          if (eventPromptModal) {
-            eventPromptModal.classList.add("visible");
-            eventPromptModal.setAttribute("aria-hidden", "false");
-          }
-        });
-
-        eventNameInput.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            submitEventName();
-          }
-          if (event.key === "Escape") {
-            closeEventNamePrompt();
-          }
-        });
+        eventPromptSubmit.disabled = true;
       }
 
       if (eventPromptModal) {
         eventPromptModal.addEventListener("click", (event) => {
           if (event.target === eventPromptModal) {
-            closeEventNamePrompt();
+            closeEventSelectionModal();
+            if (currentMode === "meeting") {
+              clearSelectedOutreachEvent();
+              updateModeUI();
+            }
           }
         });
       }
@@ -414,7 +603,7 @@
 
       document.addEventListener("pointerdown", (event) => {
         const clickedToggle = event.target && event.target.closest && event.target.closest("#mode-toggle");
-        const clickedPromptField = event.target && event.target.closest && event.target.closest("#event-name-input, .event-prompt-card, .event-prompt-submit, .event-prompt-cancel");
+        const clickedPromptField = event.target && event.target.closest && event.target.closest(".event-prompt-card, .event-prompt-submit, .event-prompt-cancel");
 
         if (clickedToggle || clickedPromptField) {
           return;
@@ -448,15 +637,15 @@
       init,
       handleScan,
       updateModeUI,
-      openEventNamePrompt,
-      closeEventNamePrompt,
-      submitEventName,
+      openEventSelectionModal,
+      closeEventSelectionModal,
+      chooseCalendarEvent,
       focusScannerInput,
       get state() {
         return {
           currentMode,
           outreachEventName,
-          outreachActive
+          selectedEventId
         };
       }
     };
@@ -466,6 +655,7 @@
     createAttendanceApp,
     decodeJwtPayload,
     getSupabaseProjectRefFromUrl,
-    validateSupabaseConfig
+    validateSupabaseConfig,
+    getTodaysCalendarEvents
   };
 })();
