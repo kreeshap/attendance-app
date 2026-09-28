@@ -414,14 +414,14 @@
 
       if (dbClient) {
         try {
-          // Deactivate previously active outreach events
+          // close other active events
           await dbClient
             .from("outreach_events")
             .update({ status: "completed" })
             .neq("id", selectedEventId)
             .eq("status", "active");
 
-          // Create or activate this event entry in Supabase
+          // save this event
           const { error: upsertErr } = await dbClient
             .from("outreach_events")
             .upsert([
@@ -548,11 +548,16 @@
         card.className = "event-option-card event-option-card-single";
         card.dataset.eventId = event.id || "";
         card.dataset.eventName = event.name || "";
-        card.innerHTML = `
-          <span class="event-option-name">${event.name || "Untitled event"}</span>
-          <span class="event-option-meta">${formatCalendarEventTime(event.start)} - ${formatCalendarEventTime(event.end)}</span>
-          <span class="event-option-meta">${event.location ? event.location : "Location TBD"}</span>
-        `;
+        const eventName = document.createElement("span");
+        eventName.className = "event-option-name";
+        eventName.textContent = event.name || "Untitled event";
+        const eventTime = document.createElement("span");
+        eventTime.className = "event-option-meta";
+        eventTime.textContent = `${formatCalendarEventTime(event.start)} - ${formatCalendarEventTime(event.end)}`;
+        const eventLocation = document.createElement("span");
+        eventLocation.className = "event-option-meta";
+        eventLocation.textContent = event.location || "Location TBD";
+        card.append(eventName, eventTime, eventLocation);
         card.addEventListener("click", () => {
           pendingSelection = event;
           const allCards = eventSelectionList.querySelectorAll(".event-option-card");

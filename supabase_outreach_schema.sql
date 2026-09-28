@@ -1,10 +1,6 @@
--- ==============================================================================
--- Robostangs Attendance System - Outreach Tables Schema
--- Run this script in your Supabase Dashboard: SQL Editor > New query > Run
--- ==============================================================================
+-- outreach tables
 
--- 1. Outreach Events Table
--- Stores event records created when Outreach Mode is activated in the scanner app.
+-- store outreach events
 create table if not exists public.outreach_events (
     id text primary key,
     name text not null,
@@ -15,8 +11,7 @@ create table if not exists public.outreach_events (
     created_at timestamptz not null default now()
 );
 
--- 2. Outreach Attendance Table
--- Stores check-ins and check-outs bucketed under a specific outreach event.
+-- store outreach check-ins and check-outs
 create table if not exists public.outreach_attendance (
     id uuid primary key default gen_random_uuid(),
     event_id text references public.outreach_events(id) on delete cascade,
@@ -27,7 +22,7 @@ create table if not exists public.outreach_attendance (
     created_at timestamptz not null default now()
 );
 
--- 3. Indexes for fast lookups
+-- speed up common queries
 create index if not exists idx_outreach_events_status_created
     on public.outreach_events(status, created_at desc);
 
@@ -37,11 +32,11 @@ create index if not exists idx_outreach_attendance_event
 create index if not exists idx_outreach_attendance_member_event
     on public.outreach_attendance(member_id, event_id, check_out);
 
--- 4. Enable Row Level Security (RLS)
+-- enable row-level security
 alter table public.outreach_events enable row level security;
 alter table public.outreach_attendance enable row level security;
 
--- 5. Policies for outreach_events (Scanner app with anon key + service role)
+-- allow the scanner to access events
 drop policy if exists "Allow select outreach_events" on public.outreach_events;
 create policy "Allow select outreach_events"
     on public.outreach_events for select using (true);
@@ -54,7 +49,7 @@ drop policy if exists "Allow update outreach_events" on public.outreach_events;
 create policy "Allow update outreach_events"
     on public.outreach_events for update using (true);
 
--- 6. Policies for outreach_attendance (Scanner app with anon key + service role)
+-- allow the scanner to access attendance
 drop policy if exists "Allow select outreach_attendance" on public.outreach_attendance;
 create policy "Allow select outreach_attendance"
     on public.outreach_attendance for select using (true);
