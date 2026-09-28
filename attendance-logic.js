@@ -6,23 +6,8 @@
   const EVENT_STORAGE_KEY = "robostangs_event_name";
   const EVENT_ID_STORAGE_KEY = "robostangs_event_id";
   const EVENT_NAME_STORAGE_KEY = "robostangs_event_name_v2";
-
-  const CALENDAR_DEV_EVENTS = window.__ROBOSTANGS_CALENDAR_EVENTS__ || [
-    {
-      id: "dev-event-1",
-      name: "Community Night",
-      start: new Date(new Date().setHours(17, 0, 0, 0)).toISOString(),
-      end: new Date(new Date().setHours(19, 0, 0, 0)).toISOString(),
-      location: "Main Hall"
-    },
-    {
-      id: "dev-event-2",
-      name: "STEM Demo",
-      start: new Date(new Date().setHours(18, 30, 0, 0)).toISOString(),
-      end: new Date(new Date().setHours(20, 0, 0, 0)).toISOString(),
-      location: "Workshop Lab"
-    }
-  ];
+  const GOOGLE_CALENDAR_ID = "cqul964gqsvk45mmlbfdkto2js@group.calendar.google.com";
+  const GOOGLE_CALENDAR_TIMEZONE = "America/New_York";
 
   function formatCalendarEventTime(value) {
     if (!value) return "TBD";
@@ -42,41 +27,161 @@
     }).format(date);
   }
 
+  function getGoogleCalendarApiKey() {
+    if (typeof window === "undefined") {
+      return "";
+    }
+
+    const key = window.__ROBOSTANGS_GOOGLE_CALENDAR_KEY__ || window.GOOGLE_CALENDAR_KEY || "";
+    return String(key).trim();
+  }
+
+  function getGoogleCalendarId() {
+    if (typeof window === "undefined") {
+      return GOOGLE_CALENDAR_ID;
+    }
+
+    const override = window.__ROBOSTANGS_GOOGLE_CALENDAR_ID__ || "";
+    return String(override || GOOGLE_CALENDAR_ID).trim() || GOOGLE_CALENDAR_ID;
+  }
+
+  function buildDateRangeForToday(timeZone) {
+    const now = new Date();
+    const formatter = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit"
+    });
+
+    const parts = formatter.formatToParts(now);
+    const values = {};
+    for (const part of parts) {
+      if (part.type !== "literal") {
+        values[part.type] = part.value;
+      }
+    }
+
+    const dateString = `${values.year}-${String(values.month).padStart(2, "0")}-${String(values.day).padStart(2, "0")}`;
+    const timeZoneOffsetMin = (() => {
+      const tzFormatter = new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        timeZoneName: "shortOffset",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+
+      const tzParts = tzFormatter.formatToParts(now);
+      const tzName = tzParts.find((part) => part.type === "timeZoneName")?.value || "GMT";
+      const match = tzName.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+
+      if (!match) {
+        return 0;
+      }
+
+      const sign = match[1] === "-" ? -1 : 1;
+      const hours = Number(match[2]) || 0;
+      const minutes = Number(match[3]) || 0;
+      return sign * (hours * 60 + minutes);
+    })();
+
+    const sign = timeZoneOffsetMin >= 0 ? "+" : "-";
+    const absOffset = Math.abs(timeZoneOffsetMin);
+    const offsetHours = String(Math.floor(absOffset / 60)).padStart(2, "0");
+    const offsetMinutes = String(absOffset % 60).padStart(2, "0");
+    const offsetString = `${sign}${offsetHours}:${offsetMinutes}`;
+
+    return {
+      date: dateString,
+      timeMin: new Date(`${dateString}T00:00:00${offsetString}`).toISOString(),
+      timeMax: new Date(`${dateString}T23:59:59${offsetString}`).toISOString()
+    };
+  }
+
+  function normalizeGoogleCalendarEvent(rawEvent) {
+    if (!rawEvent) {
+      return null;
+    }
+
+    const startValue = rawEvent.start?.dateTime || rawEvent.start?.date;
+    const endValue = rawEvent.end?.dateTime || rawEvent.end?.date || startValue;
+
+    if (!startValue) {
+      return null;
+    }
+
+    return {
+      id: String(rawEvent.id || `event-${Math.random().toString(36).slice(2, 10)}`),
+      name: rawEvent.summary || "Untitled event",
+      start: startValue,
+      end: endValue,
+      location: rawEvent.location || null
+    };
+  }
+
   async function getTodaysCalendarEvents() {
     const customEvents = window.__ROBOSTANGS_CALENDAR_EVENTS__;
-    const source = Array.isArray(customEvents) ? customEvents : CALENDAR_DEV_EVENTS;
+    if (Array.isArray(customEvents)) {
+      return customEvents
+        .filter(Boolean)
+        .map((event) => ({
+          id: String(event.id || `event-${Math.random().toString(36).slice(2, 10)}`),
+          name: event.name || "Untitled event",
+          start: event.start,
+          end: event.end || event.start,
+          location: event.location || null
+        }))
+        .filter((event) => event && event.start)
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
+    }
 
-    return source
-      .filter((event) => {
-        if (!event || !event.start) return false;
+    const apiKey = getGoogleCalendarApiKey();
+    if (!apiKey) {
+      console.warn("Google Calendar API key not configured. Set window.__ROBOSTANGS_GOOGLE_CALENDAR_KEY__ before loading the app.");
+      return [];
+    }
 
-        const eventDate = new Date(event.start);
-        if (Number.isNaN(eventDate.getTime())) return false;
+    const calendarId = getGoogleCalendarId();
+    const { timeMin, timeMax } = buildDateRangeForToday(GOOGLE_CALENDAR_TIMEZONE);
+    const calendarUrl = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`);
 
-        const eventDay = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "America/New_York",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit"
-        }).format(eventDate);
+    calendarUrl.searchParams.set("key", apiKey);
+    calendarUrl.searchParams.set("timeMin", timeMin);
+    calendarUrl.searchParams.set("timeMax", timeMax);
+    calendarUrl.searchParams.set("singleEvents", "true");
+    calendarUrl.searchParams.set("orderBy", "startTime");
+    calendarUrl.searchParams.set("timeZone", GOOGLE_CALENDAR_TIMEZONE);
 
-        const today = new Intl.DateTimeFormat("en-CA", {
-          timeZone: "America/New_York",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit"
-        }).format(new Date());
+    try {
+      const response = await fetch(calendarUrl.toString(), {
+        method: "GET",
+        headers: {
+          Accept: "application/json"
+        }
+      });
 
-        return eventDay === today;
-      })
-      .map((event) => ({
-        id: String(event.id || `event-${Math.random().toString(36).slice(2, 10)}`),
-        name: event.name || "Untitled event",
-        start: event.start,
-        end: event.end || event.start,
-        location: event.location || null
-      }))
-      .sort((a, b) => new Date(a.start) - new Date(b.start));
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Google Calendar request failed:", response.status, errorText);
+        return [];
+      }
+
+      const payload = await response.json();
+      const items = Array.isArray(payload?.items) ? payload.items : [];
+
+      return items
+        .map(normalizeGoogleCalendarEvent)
+        .filter(Boolean)
+        .sort((a, b) => new Date(a.start) - new Date(b.start));
+    } catch (error) {
+      console.error("Unable to load Google Calendar events:", error);
+      return [];
+    }
   }
 
   function decodeJwtPayload(jwt) {
