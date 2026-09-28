@@ -1,6 +1,14 @@
 (function () {
-  const SUPABASE_URL = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_URL__) ? String(window.__ROBOSTANGS_SUPABASE_URL__).trim() : "";
-  const SUPABASE_ANON_KEY = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_ANON_KEY__) ? String(window.__ROBOSTANGS_SUPABASE_ANON_KEY__).trim() : "";
+  const DEFAULT_SUPABASE_URL = "https://mkizsdepvbrevyojmbjq.supabase.co";
+  const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1raXpzZGVwdmJyZXZ5b2ptYmpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg0NjA5ODIsImV4cCI6MjEwNDAzNjk4Mn0.pKpq9evw3YvmKeJ0dQBUxIYLkhPNAKcxMGQByAmNcRg";
+  const DEFAULT_GOOGLE_CALENDAR_KEY = "AIzaSyDF4n3eKapYzg1ZMvAi9QjIsViD4OPwEZY";
+
+  const SUPABASE_URL = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_URL__)
+    ? String(window.__ROBOSTANGS_SUPABASE_URL__).trim()
+    : DEFAULT_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = (typeof window !== "undefined" && window.__ROBOSTANGS_SUPABASE_ANON_KEY__)
+    ? String(window.__ROBOSTANGS_SUPABASE_ANON_KEY__).trim()
+    : DEFAULT_SUPABASE_ANON_KEY;
 
   const MODE_STORAGE_KEY = "robostangs_mode";
   const EVENT_STORAGE_KEY = "robostangs_event_name";
@@ -28,12 +36,11 @@
   }
 
   function getGoogleCalendarApiKey() {
-    if (typeof window === "undefined") {
-      return "";
+    if (typeof window !== "undefined") {
+      const key = window.__ROBOSTANGS_GOOGLE_CALENDAR_KEY__ || window.GOOGLE_CALENDAR_KEY;
+      if (key) return String(key).trim();
     }
-
-    const key = window.__ROBOSTANGS_GOOGLE_CALENDAR_KEY__ || window.GOOGLE_CALENDAR_KEY || "";
-    return String(key).trim();
+    return DEFAULT_GOOGLE_CALENDAR_KEY;
   }
 
   function getGoogleCalendarId() {
@@ -387,21 +394,57 @@
       }
       if (eventPromptSubmit) {
         eventPromptSubmit.disabled = true;
-        eventPromptSubmit.style.display = "inline-flex";
+        if (eventPromptSubmit.style) {
+          eventPromptSubmit.style.display = "inline-flex";
+        }
         eventPromptSubmit.textContent = "Confirm";
       }
       pendingSelection = null;
       focusScannerInput();
     }
 
-    function chooseCalendarEvent(event) {
+    async function chooseCalendarEvent(event) {
       if (!event) return;
 
-      selectedEventId = event.id || "";
-      outreachEventName = event.name || "";
+      selectedEventId = event.id || `event-${Date.now()}`;
+      outreachEventName = event.name || "Untitled event";
       currentMode = "outreach";
       closeEventSelectionModal();
       updateModeUI();
+
+      if (dbClient) {
+        try {
+          // Deactivate previously active outreach events
+          await dbClient
+            .from("outreach_events")
+            .update({ status: "completed" })
+            .neq("id", selectedEventId)
+            .eq("status", "active");
+
+          // Create or activate this event entry in Supabase
+          const { error: upsertErr } = await dbClient
+            .from("outreach_events")
+            .upsert([
+              {
+                id: String(selectedEventId),
+                name: String(outreachEventName).trim(),
+                start_time: event.start || new Date().toISOString(),
+                end_time: event.end || null,
+                location: event.location || null,
+                status: "active",
+                created_at: new Date().toISOString()
+              }
+            ], { onConflict: "id" });
+
+          if (upsertErr) {
+            console.warn("Could not register outreach event in Supabase:", upsertErr);
+          } else {
+            console.log("Registered outreach event in Supabase:", outreachEventName, selectedEventId);
+          }
+        } catch (err) {
+          console.warn("Error registering outreach event in Supabase:", err);
+        }
+      }
     }
 
     function renderEventSelectionList(events) {
@@ -414,17 +457,83 @@
 
       if (!Array.isArray(events) || events.length === 0) {
         if (eventSelectionTitle) {
-          eventSelectionTitle.textContent = "No outreach events scheduled for today.";
+          eventSelectionTitle.textContent = "Start Outreach Event";
         }
         const emptyMessage = document.createElement("p");
         emptyMessage.className = "event-selection-empty";
-        emptyMessage.textContent = "No outreach events scheduled for today.";
+        emptyMessage.textContent = "No outreach events found on Google Calendar for today. Enter an event name below to start:";
         eventSelectionList.appendChild(emptyMessage);
+
+        const customContainer = document.createElement("div");
+        customContainer.className = "custom-event-container";
+        customContainer.style.marginTop = "14px";
+        customContainer.style.display = "flex";
+        customContainer.style.flexDirection = "column";
+        customContainer.style.gap = "8px";
+
+        const customInput = document.createElement("input");
+        customInput.type = "text";
+        customInput.placeholder = "e.g. STEM Expo Demo";
+        customInput.className = "custom-event-input";
+        customInput.maxLength = 100;
+        customInput.style.padding = "14px 16px";
+        customInput.style.borderRadius = "14px";
+        customInput.style.border = "1px solid rgba(255, 122, 26, 0.5)";
+        customInput.style.background = "#13212b";
+        customInput.style.color = "#ffffff";
+        customInput.style.fontSize = "16px";
+        customInput.style.outline = "none";
+
+        customInput.addEventListener("input", () => {
+          const val = customInput.value.trim();
+          if (val) {
+            pendingSelection = {
+              id: `custom-${Date.now()}`,
+              name: val,
+              start: new Date().toISOString(),
+              end: null,
+              location: "Manual Entry"
+            };
+            if (eventPromptSubmit) {
+              eventPromptSubmit.disabled = false;
+              eventPromptSubmit.textContent = "Start Event";
+            }
+          } else {
+            pendingSelection = null;
+            if (eventPromptSubmit) {
+              eventPromptSubmit.disabled = true;
+              eventPromptSubmit.textContent = "Confirm";
+            }
+          }
+        });
+
+        customInput.addEventListener("keydown", async (e) => {
+          if (e.key === "Enter" && customInput.value.trim()) {
+            e.preventDefault();
+            await chooseCalendarEvent({
+              id: `custom-${Date.now()}`,
+              name: customInput.value.trim(),
+              start: new Date().toISOString(),
+              end: null,
+              location: "Manual Entry"
+            });
+          }
+        });
+
+        customContainer.appendChild(customInput);
+        eventSelectionList.appendChild(customContainer);
+
         if (eventPromptSubmit) {
           eventPromptSubmit.disabled = true;
-          eventPromptSubmit.textContent = "Close";
+          eventPromptSubmit.textContent = "Start Event";
           eventPromptSubmit.style.display = "inline-flex";
+          eventPromptSubmit.onclick = async () => {
+            if (pendingSelection) {
+              await chooseCalendarEvent(pendingSelection);
+            }
+          };
         }
+        setTimeout(() => customInput.focus(), 50);
         return;
       }
 
@@ -457,11 +566,11 @@
         if (eventPromptSubmit) {
           eventPromptSubmit.disabled = false;
           eventPromptSubmit.textContent = "Confirm event";
-          eventPromptSubmit.onclick = () => {
+          eventPromptSubmit.onclick = async () => {
             if (!pendingSelection) {
               pendingSelection = event;
             }
-            chooseCalendarEvent(pendingSelection || event);
+            await chooseCalendarEvent(pendingSelection || event);
           };
         }
         return;
@@ -474,11 +583,11 @@
       if (eventPromptSubmit) {
         eventPromptSubmit.disabled = true;
         eventPromptSubmit.textContent = "Confirm";
-        eventPromptSubmit.onclick = () => {
+        eventPromptSubmit.onclick = async () => {
           if (!pendingSelection) {
             return;
           }
-          chooseCalendarEvent(pendingSelection);
+          await chooseCalendarEvent(pendingSelection);
         };
       }
 
@@ -563,16 +672,30 @@
           return;
         }
 
-        const { data: activeLog, error: logError } = await dbClient
-          .from("attendance")
+        const isOutreach = currentMode === "outreach";
+        const table = isOutreach ? "outreach_attendance" : "attendance";
+
+        let logQuery = dbClient
+          .from(table)
           .select("id")
           .eq("member_id", normalizedId)
-          .is("check_out", null)
-          .maybeSingle();
+          .is("check_out", null);
+
+        if (isOutreach && selectedEventId) {
+          logQuery = logQuery.eq("event_id", selectedEventId);
+        }
+
+        const { data: activeLog, error: logError } = await logQuery.maybeSingle();
 
         if (logError) {
           if (isSupabaseAuthFailure(logError)) {
             showStatus("OFFLINE", "#f44336", "SUPABASE UNAVAILABLE", "CHECK CONNECTION");
+            return;
+          }
+
+          if (logError.code === "PGRST204" || logError.code === "42P01" || String(logError.message).toLowerCase().includes("relation") || String(logError.message).toLowerCase().includes("schema cache")) {
+            showStatus("TABLE MISSING", "#f44336", "RUN SQL SCHEMA", "CHECK SUPABASE DASHBOARD");
+            console.error(`Missing table '${table}'. Please run supabase_outreach_schema.sql in Supabase SQL Editor.`, logError);
             return;
           }
 
@@ -584,7 +707,7 @@
 
         if (activeLog) {
           const { error: updateError } = await dbClient
-            .from("attendance")
+            .from(table)
             .update({ check_out: new Date().toISOString() })
             .eq("id", activeLog.id);
 
@@ -599,13 +722,31 @@
 
           showStatus("CHECKED OUT", "#ff9800", member.full_name.toUpperCase(), `AT ${timeString}`);
         } else {
+          const insertPayload = isOutreach
+            ? {
+                event_id: String(selectedEventId || `event-${Date.now()}`),
+                event_name: String(outreachEventName || "Untitled event").trim(),
+                member_id: normalizedId,
+                check_in: new Date().toISOString()
+              }
+            : {
+                member_id: normalizedId,
+                check_in: new Date().toISOString()
+              };
+
           const { error: insertError } = await dbClient
-            .from("attendance")
-            .insert([{ member_id: normalizedId, check_in: new Date().toISOString() }]);
+            .from(table)
+            .insert([insertPayload]);
 
           if (insertError) {
             if (isSupabaseAuthFailure(insertError)) {
               showStatus("OFFLINE", "#f44336", "SUPABASE UNAVAILABLE", "CHECK CONNECTION");
+              return;
+            }
+
+            if (insertError.code === "PGRST204" || insertError.code === "42P01" || String(insertError.message).toLowerCase().includes("relation") || String(insertError.message).toLowerCase().includes("schema cache")) {
+              showStatus("TABLE MISSING", "#f44336", "RUN SQL SCHEMA", "CHECK SUPABASE DASHBOARD");
+              console.error(`Missing table '${table}'. Please run supabase_outreach_schema.sql in Supabase SQL Editor.`, insertError);
               return;
             }
 
@@ -649,9 +790,21 @@
           if (currentMode === "meeting") {
             await openEventSelectionModal();
           } else {
+            const closingEventId = selectedEventId;
             currentMode = "meeting";
             clearSelectedOutreachEvent();
             updateModeUI();
+
+            if (dbClient && closingEventId) {
+              try {
+                await dbClient
+                  .from("outreach_events")
+                  .update({ status: "completed" })
+                  .eq("id", closingEventId);
+              } catch (e) {
+                console.warn("Could not mark outreach event completed:", e);
+              }
+            }
           }
         });
       }

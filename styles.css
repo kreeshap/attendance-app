@@ -244,6 +244,33 @@ body {
   line-height: 1.4;
 }
 
+.custom-event-container {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.custom-event-input {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 122, 26, 0.4);
+  background: rgba(255, 122, 26, 0.08);
+  color: var(--text);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.custom-event-input:focus {
+  border-color: rgba(255, 122, 26, 0.9);
+  background: rgba(255, 122, 26, 0.15);
+  box-shadow: 0 0 0 2px rgba(255, 122, 26, 0.25);
+}
+
 #status-card {
   display: none;
   width: min(82vw, 520px);
