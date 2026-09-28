@@ -461,7 +461,7 @@
         }
         const emptyMessage = document.createElement("p");
         emptyMessage.className = "event-selection-empty";
-        emptyMessage.textContent = "No outreach events found on Google Calendar for today. Enter an event name below to start:";
+        emptyMessage.textContent = "No outreach events today. Create new:";
         eventSelectionList.appendChild(emptyMessage);
 
         const customContainer = document.createElement("div");
